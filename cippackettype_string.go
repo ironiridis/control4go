@@ -4,13 +4,24 @@ package main
 
 import "fmt"
 
-const _cipPacketType_name = "unk00unk01unk02unk03unk04PacketSetunk06unk07unk08unk09unk0aunk0bunk0cPacketEchoRequestPacketEchoResponseunk0funk10unk11unk12unk13unk14unk15unk16unk17unk18unk19unk1aunk1bunk1cunk1dunk1eunk1f"
+const (
+	_cipPacketType_name_0 = "PacketSet"
+	_cipPacketType_name_1 = "PacketEchoRequestPacketEchoResponse"
+)
 
-var _cipPacketType_index = [...]uint8{0, 5, 10, 15, 20, 25, 34, 39, 44, 49, 54, 59, 64, 69, 86, 104, 109, 114, 119, 124, 129, 134, 139, 144, 149, 154, 159, 164, 169, 174, 179, 184, 189}
+var (
+	_cipPacketType_index_0 = [...]uint8{0, 9}
+	_cipPacketType_index_1 = [...]uint8{0, 17, 35}
+)
 
 func (i cipPacketType) String() string {
-	if i < 0 || i >= cipPacketType(len(_cipPacketType_index)-1) {
+	switch {
+	case i == 5:
+		return _cipPacketType_name_0
+	case 13 <= i && i <= 14:
+		i -= 13
+		return _cipPacketType_name_1[_cipPacketType_index_1[i]:_cipPacketType_index_1[i+1]]
+	default:
 		return fmt.Sprintf("cipPacketType(%d)", i)
 	}
-	return _cipPacketType_name[_cipPacketType_index[i]:_cipPacketType_index[i+1]]
 }

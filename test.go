@@ -10,41 +10,12 @@ import (
 type cipPacketType int
 
 const (
-	unk00 cipPacketType = iota
-	unk01
-	unk02
-	unk03
-	unk04
 	// PacketSet appears to be used to set a value
-	PacketSet
-	unk06
-	unk07
-	unk08
-	unk09
-	unk0a
-	unk0b
-	unk0c
+	PacketSet cipPacketType = 0x05
 	// PacketEchoRequest is a keep-alive request
-	PacketEchoRequest
+	PacketEchoRequest cipPacketType = 0x0d
 	// PacketEchoResponse is a keep-alive response
-	PacketEchoResponse
-	unk0f
-	unk10
-	unk11
-	unk12
-	unk13
-	unk14
-	unk15
-	unk16
-	unk17
-	unk18
-	unk19
-	unk1a
-	unk1b
-	unk1c
-	unk1d
-	unk1e
-	unk1f
+	PacketEchoResponse cipPacketType = 0x0e
 )
 
 type cipPacketStream struct {
