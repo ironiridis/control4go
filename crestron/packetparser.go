@@ -22,7 +22,14 @@ func (s *PacketParser) Parse() (parsed int) {
 		}
 		d := make([]byte, l+1)
 		s.buf.Read(d)
-		s.ch <- &RawPacket{raw: d}
+
+		rp := &RawPacket{raw: d}
+		rp.Parse()
+		p, err := rp.Promote()
+		if err != nil {
+			//TODO: don't swallow silently
+		}
+		s.ch <- p
 
 		parsed++
 	}

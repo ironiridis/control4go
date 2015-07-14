@@ -42,21 +42,42 @@ func (p *GreetPacketResponse) Parse() error {
 }
 
 func (p *GreetPacketResponse) String() string {
-	return fmt.Sprintf("Greeting Reponse Packet w/ IPID=%d (p=% 2x)", p.IPID, p.raw)
+	return fmt.Sprintf("Greeting Reponse Packet w/ IPID=%02x (p=% 2x)", p.IPID, p.raw)
 }
 
 // SetPacket is sent to communicate a change in state (press, release, etc).
 type SetPacket struct {
-	raw []byte
+	raw        []byte
+	JoinNumber uint16
+	SetType    int // digital, analog (TODO make consts)
+	Value      uint16
 }
 
 // Parse currently is a no-op.
 func (p *SetPacket) Parse() error {
 	// no-op
+	switch p.raw[2] {
+	case 0x03: // Digital signal
+		p.SetType = 1
+		p.JoinNumber = 1 + (uint16(p.raw[4])) + (uint16(p.raw[5]&0x7f) << 8)
+		p.Value = uint16(p.raw[5]&0x80) >> 7
+	case 0x05: // Analog signal
+		p.SetType = 2
+		p.Value = (uint16(p.raw[6]) << 8) + uint16(p.raw[7])
+	}
 	return nil
 }
 
 func (p *SetPacket) String() string {
+	switch p.SetType {
+	case 1:
+		switch p.Value {
+		case 0:
+			return fmt.Sprintf("Set Packet: Press on join %d (p=% 2x)", p.JoinNumber, p.raw)
+		case 1:
+			return fmt.Sprintf("Set Packet: Release on join %d (p=% 2x)", p.JoinNumber, p.raw)
+		}
+	}
 	return fmt.Sprintf("Set Packet (p=% 2x)", p.raw)
 }
 
@@ -112,10 +133,6 @@ type RawPacket struct {
 func (p *RawPacket) Parse() error {
 	p.kind = cipPacketType(p.raw[0])
 	p.payloadLength = (int(p.raw[1]) << 8) + int(p.raw[2])
-	switch p.kind {
-	case packetGreet:
-
-	}
 	return nil
 }
 
@@ -134,4 +151,25 @@ func (p *RawPacket) RawPayload() []byte {
 		return nil
 	}
 	return p.raw[3 : 3+p.payloadLength]
+}
+
+// Promote turns a raw packet into a fully parsed packet with specific type.
+func (p *RawPacket) Promote() (Packet, error) {
+	var n Packet
+	switch p.kind {
+	case packetGreet:
+		n = &GreetPacket{raw: p.RawPayload()}
+	case packetGreetResponse:
+		n = &GreetPacketResponse{raw: p.RawPayload()}
+	case packetSet:
+		n = &SetPacket{raw: p.RawPayload()}
+	case packetEchoRequest:
+		n = &EchoRequestPacket{raw: p.RawPayload()}
+	case packetEchoResponse:
+		n = &EchoResponsePacket{raw: p.RawPayload()}
+	default:
+		return p, nil
+	}
+	err := n.Parse()
+	return n, err
 }
