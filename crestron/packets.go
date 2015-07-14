@@ -1,20 +1,27 @@
 package cip
 
-import (
-	"bytes"
-	"fmt"
-)
+import "fmt"
 
 // Packet is an interface for getting the information out of a CIP Packet.
 type Packet interface {
 	Parse() error
 	String() string
-	RawPayload() []byte
 }
 
 // GreetPacket is the initial packet a processor sends on connection.
 type GreetPacket struct {
 	raw []byte
+}
+
+// Parse currently is a no-op.
+func (p *GreetPacket) Parse() error {
+	// no-op
+	return nil
+}
+
+// String returns a string representation of the packet.
+func (p *GreetPacket) String() string {
+	return fmt.Sprintf("Greeting Packet (p=% 2x)", p.raw)
 }
 
 // GreetPacketResponse is the packet a device sends in response to a GreetPacket.
@@ -25,9 +32,32 @@ type GreetPacketResponse struct {
 	IPID byte
 }
 
+// Parse reads the IPID from the packet.
+func (p *GreetPacketResponse) Parse() error {
+	p.IPID = p.raw[5]
+	if p.IPID < 0x03 || p.IPID > 0xFE {
+		return fmt.Errorf("IPID outside of valid range: %d", p.IPID)
+	}
+	return nil
+}
+
+func (p *GreetPacketResponse) String() string {
+	return fmt.Sprintf("Greeting Reponse Packet w/ IPID=%d (p=% 2x)", p.IPID, p.raw)
+}
+
 // SetPacket is sent to communicate a change in state (press, release, etc).
 type SetPacket struct {
 	raw []byte
+}
+
+// Parse currently is a no-op.
+func (p *SetPacket) Parse() error {
+	// no-op
+	return nil
+}
+
+func (p *SetPacket) String() string {
+	return fmt.Sprintf("Set Packet (p=% 2x)", p.raw)
 }
 
 // EchoRequestPacket requests that the peer prove the connection is still good.
@@ -35,9 +65,29 @@ type EchoRequestPacket struct {
 	raw []byte
 }
 
+// Parse currently is a no-op.
+func (p *EchoRequestPacket) Parse() error {
+	// no-op
+	return nil
+}
+
+func (p *EchoRequestPacket) String() string {
+	return fmt.Sprintf("Echo Request Packet (p=% 2x)", p.raw)
+}
+
 // EchoResponsePacket is a response to EchoRequestPacket.
 type EchoResponsePacket struct {
 	raw []byte
+}
+
+// Parse currently is a no-op.
+func (p *EchoResponsePacket) Parse() error {
+	// no-op
+	return nil
+}
+
+func (p *EchoResponsePacket) String() string {
+	return fmt.Sprintf("Echo Response Packet (p=% 2x)", p.raw)
 }
 
 //go:generate stringer -type=cipPacketType
@@ -56,45 +106,6 @@ type RawPacket struct {
 	raw           []byte
 	kind          cipPacketType
 	payloadLength int
-}
-
-// PacketParser buffers responses and reads/parses them in order.
-type PacketParser struct {
-	buf *bytes.Buffer
-	ch  chan Packet
-}
-
-// Parse will read as many packets as possible, outputting them on the channel.
-func (s *PacketParser) Parse() (parsed int) {
-	for {
-		if s.buf.Len() < 3 {
-			return
-		}
-		b := s.buf.Bytes()
-		l := 2 + (int(b[1]) << 8) + int(b[2])
-
-		if s.buf.Len() < l {
-			return
-		}
-		d := make([]byte, l+1)
-		s.buf.Read(d)
-		s.ch <- &RawPacket{raw: d}
-
-		parsed++
-	}
-}
-
-// Write will add data to the parsing queue, staged for a call to Parse.
-func (s *PacketParser) Write(b []byte) (int, error) {
-	return s.buf.Write(b)
-}
-
-// NewPacketParser returns an instance of a parser with a channel for receiving
-// complete packets.
-func NewPacketParser() (*PacketParser, chan Packet) {
-	ch := make(chan Packet)
-	j := &PacketParser{buf: new(bytes.Buffer), ch: ch}
-	return j, ch
 }
 
 // Parse reads the type of packet and the payload length.
