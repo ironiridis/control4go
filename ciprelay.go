@@ -30,11 +30,13 @@ func pipeIntercept(a, b net.Conn, done chan bool, stream *cip.PacketParser) {
 			break
 		}
 	}
-	done <- true
+	select {
+	case done <- true: // signal completion (usually disconnect)
+	default: // channel is closed; connection is already tearing down
+	}
 }
 
 func main() {
-	pipeDone := make(chan bool)
 	for {
 		panelListener, err := net.Listen("tcp", ":41794")
 		if err != nil {
@@ -51,6 +53,7 @@ func main() {
 		}
 		fromProc, pktFromProc := cip.NewPacketParser()
 		fromDevice, pktFromDevice := cip.NewPacketParser()
+		pipeDone := make(chan bool, 2)
 		go pipeIntercept(processor, panel, pipeDone, fromProc)
 		go pipeIntercept(panel, processor, pipeDone, fromDevice)
 		var p cip.Packet
