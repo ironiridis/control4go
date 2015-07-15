@@ -49,26 +49,36 @@ func (p *GreetPacketResponse) String() string {
 type SetPacket struct {
 	raw        []byte
 	JoinNumber uint16
-	SetType    int // digital, analog (TODO make consts)
+	Type       SetPacketType
 	Value      uint16
 }
+
+// SetPacketType specifies the kind of "set" operation is in this packet.
+type SetPacketType int
+
+const (
+	// DigitalTransition refers to a press/release or a high/low state change.
+	DigitalTransition SetPacketType = iota
+	// AnalogUpdate refers to an analog value change.
+	AnalogUpdate
+)
 
 // Parse a Set packet and fills struct fields from that data.
 func (p *SetPacket) Parse() error {
 	switch p.raw[2] {
 	case 0x03: // Digital set
-		p.SetType = 1
+		p.Type = DigitalTransition
 		// Not a typo: join number bytes are reversed depending on set type
 		p.JoinNumber = 1 + (uint16(p.raw[5]&0x7f) << 8) + (uint16(p.raw[4]))
-		if (uint16(p.raw[5] & 0x80)) == 0 { // 1=press, 0=release
-			p.Value = 1
+		if (uint16(p.raw[5] & 0x80)) == 0 {
+			p.Value = 1 // high/press
 		} else {
-			p.Value = 0
+			p.Value = 0 // low/release
 		}
 	case 0x05: // Analog set
 		// 00 00 05 XX jj jj vv vv
-		// It's not clear what XX is; might be a sample rate? (is usually 14)
-		p.SetType = 2
+		// It's not clear what XX is; might be a sample rate? (is usually 0x14)
+		p.Type = AnalogUpdate
 		// Not a typo: join number bytes are reversed depending on set type
 		p.JoinNumber = 1 + (uint16(p.raw[4]) << 8) + (uint16(p.raw[5]))
 		p.Value = (uint16(p.raw[6]) << 8) + uint16(p.raw[7])
@@ -77,13 +87,13 @@ func (p *SetPacket) Parse() error {
 }
 
 func (p *SetPacket) String() string {
-	switch p.SetType {
-	case 1:
+	switch p.Type {
+	case DigitalTransition:
 		if p.Value > 0 {
 			return fmt.Sprintf("Set Packet: Press on join %d (p=% 2x)", p.JoinNumber, p.raw)
 		}
 		return fmt.Sprintf("Set Packet: Release on join %d (p=% 2x)", p.JoinNumber, p.raw)
-	case 2:
+	case AnalogUpdate:
 		return fmt.Sprintf("Set Packet: Analog value %d on join %d (p=% 2x)", p.Value, p.JoinNumber, p.raw)
 	}
 	return fmt.Sprintf("Set Packet (p=% 2x)", p.raw)
