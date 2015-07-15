@@ -145,6 +145,7 @@ type SerialDataPacket struct {
 	Encoding   int
 }
 
+// Parse decodes the string value in a SerialDataPacket.
 func (p *SerialDataPacket) Parse() error {
 	l := (uint32(p.raw[0]) << 24) + (uint32(p.raw[1]) << 16) + (uint32(p.raw[2]) << 8) + uint32(p.raw[3])
 	p.JoinNumber = 1 + (uint16(p.raw[5]) << 8) + (uint16(p.raw[6]))
@@ -153,6 +154,7 @@ func (p *SerialDataPacket) Parse() error {
 	case 3: // ASCII
 		p.Value = string(p.raw[8 : 4+l])
 	case 7: // UTF-16
+		// Gather UTF-16 values so they can be decoded
 		decbuf := make([]uint16, 0, (l-4)/2)
 		g := uint32(0)
 		for g < ((l - 4) / 2) {
