@@ -8,12 +8,14 @@ const (
 	_cipPacketType_name_0 = "packetGreetResponse"
 	_cipPacketType_name_1 = "packetSet"
 	_cipPacketType_name_2 = "packetEchoRequestpacketEchoResponsepacketGreet"
+	_cipPacketType_name_3 = "packetSerialData"
 )
 
 var (
 	_cipPacketType_index_0 = [...]uint8{0, 19}
 	_cipPacketType_index_1 = [...]uint8{0, 9}
 	_cipPacketType_index_2 = [...]uint8{0, 17, 35, 46}
+	_cipPacketType_index_3 = [...]uint8{0, 16}
 )
 
 func (i cipPacketType) String() string {
@@ -25,6 +27,8 @@ func (i cipPacketType) String() string {
 	case 13 <= i && i <= 15:
 		i -= 13
 		return _cipPacketType_name_2[_cipPacketType_index_2[i]:_cipPacketType_index_2[i+1]]
+	case i == 18:
+		return _cipPacketType_name_3
 	default:
 		return fmt.Sprintf("cipPacketType(%d)", i)
 	}

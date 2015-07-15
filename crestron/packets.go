@@ -1,6 +1,7 @@
 package cip
 
 import "fmt"
+import "unicode/utf16"
 
 // Packet is an interface for getting the information out of a CIP Packet.
 type Packet interface {
@@ -57,16 +58,19 @@ type SetPacket struct {
 type SetPacketType int
 
 const (
+	unknownSetPacketType SetPacketType = iota
 	// DigitalTransition refers to a press/release or a high/low state change.
-	DigitalTransition SetPacketType = iota
+	DigitalTransition
 	// AnalogUpdate refers to an analog value change.
 	AnalogUpdate
+	// SerialTraffic refers to a packet describing serial traffic.
+	SerialTraffic
 )
 
 // Parse a Set packet and fills struct fields from that data.
 func (p *SetPacket) Parse() error {
-	switch p.raw[2] {
-	case 0x03: // Digital set
+	switch p.raw[3] {
+	case 0x27: // Digital set
 		p.Type = DigitalTransition
 		// Not a typo: join number bytes are reversed depending on set type
 		p.JoinNumber = 1 + (uint16(p.raw[5]&0x7f) << 8) + (uint16(p.raw[4]))
@@ -75,14 +79,16 @@ func (p *SetPacket) Parse() error {
 		} else {
 			p.Value = 0 // low/release
 		}
-	case 0x05: // Analog set
-		// 00 00 05 XX jj jj vv vv
-		// It's not clear what XX is; might be a sample rate? (is usually 0x14)
+	case 0x14: // Analog set
 		p.Type = AnalogUpdate
 		// Not a typo: join number bytes are reversed depending on set type
 		p.JoinNumber = 1 + (uint16(p.raw[4]) << 8) + (uint16(p.raw[5]))
 		p.Value = (uint16(p.raw[6]) << 8) + uint16(p.raw[7])
+	case 0x02: // Serial traffic
+		p.Type = SerialTraffic
+
 	}
+
 	return nil
 }
 
@@ -95,8 +101,10 @@ func (p *SetPacket) String() string {
 		return fmt.Sprintf("Set Packet: Release on join %d (p=% 2x)", p.JoinNumber, p.raw)
 	case AnalogUpdate:
 		return fmt.Sprintf("Set Packet: Analog value %d on join %d (p=% 2x)", p.Value, p.JoinNumber, p.raw)
+	case SerialTraffic:
+		return fmt.Sprintf("Set Packet: Serial traffic [can contain multiple transitions] (p=% 2x)", p.raw)
 	}
-	return fmt.Sprintf("Set Packet (p=% 2x)", p.raw)
+	return fmt.Sprintf("Set Packet [unknown specific type] (p=% 2x)", p.raw)
 }
 
 // EchoRequestPacket requests that the peer prove the connection is still good.
@@ -129,6 +137,37 @@ func (p *EchoResponsePacket) String() string {
 	return fmt.Sprintf("Echo Response Packet (p=% 2x)", p.raw)
 }
 
+// SerialDataPacket is an update consisting of serial traffic.
+type SerialDataPacket struct {
+	raw        []byte
+	JoinNumber uint16
+	Value      string
+	Encoding   int
+}
+
+func (p *SerialDataPacket) Parse() error {
+	l := (uint32(p.raw[0]) << 24) + (uint32(p.raw[1]) << 16) + (uint32(p.raw[2]) << 8) + uint32(p.raw[3])
+	p.JoinNumber = 1 + (uint16(p.raw[5]) << 8) + (uint16(p.raw[6]))
+	p.Encoding = int(p.raw[7])
+	switch p.Encoding {
+	case 3: // ASCII
+		p.Value = string(p.raw[8 : 4+l])
+	case 7: // UTF-16
+		decbuf := make([]uint16, 0, (l-4)/2)
+		g := uint32(0)
+		for g < ((l - 4) / 2) {
+			decbuf = append(decbuf, uint16(p.raw[(g*2)+8])+(uint16(p.raw[(g*2)+9])<<8))
+			g++
+		}
+		p.Value = string(utf16.Decode(decbuf))
+	}
+	return nil
+}
+
+func (p *SerialDataPacket) String() string {
+	return fmt.Sprintf("Serial Data Packet: Value=%q on join %d (p=% 2x)", p.Value, p.JoinNumber, p.raw)
+}
+
 //go:generate stringer -type=cipPacketType
 type cipPacketType byte
 
@@ -138,6 +177,7 @@ const (
 	packetEchoRequest   cipPacketType = 0x0d
 	packetEchoResponse  cipPacketType = 0x0e
 	packetGreet         cipPacketType = 0x0f
+	packetSerialData    cipPacketType = 0x12
 )
 
 // RawPacket is an uninterpreted packet that can be further processed.
@@ -185,6 +225,8 @@ func (p *RawPacket) Promote() (Packet, error) {
 		n = &EchoRequestPacket{raw: p.RawPayload()}
 	case packetEchoResponse:
 		n = &EchoResponsePacket{raw: p.RawPayload()}
+	case packetSerialData:
+		n = &SerialDataPacket{raw: p.RawPayload()}
 	default:
 		return p, nil
 	}
