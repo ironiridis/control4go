@@ -23,8 +23,32 @@ type RawPacket struct {
 	payloadLength int
 }
 
-// Parse is currently a no-op
-func (s *PacketParser) Parse() int { return 0 }
+// Parse will read as many packets as possible, outputting them on the channel.
+func (s *PacketParser) Parse() (parsed int) {
+	for {
+		if s.buf.Len() < 3 {
+			return
+		}
+		b := s.buf.Bytes()
+		if b[0] != 0x02 {
+			// observed packets always begin with 0x02, assume a desync
+			s.buf.Truncate(0)
+			return
+		}
+		l := 2 + (int(b[1]) << 8) + int(b[2])
+
+		if s.buf.Len() < l {
+			return
+		}
+		d := make([]byte, l+1)
+		s.buf.Read(d)
+
+		rp := &RawPacket{raw: d}
+		s.ch <- rp
+
+		parsed++
+	}
+}
 
 // Write will add data to the parsing queue, staged for a call to Parse.
 func (s *PacketParser) Write(b []byte) (int, error) {
@@ -51,3 +75,6 @@ func (p *RawPacket) RawPayload() []byte {
 func (p *RawPacket) String() string {
 	return fmt.Sprintf("raw=% 2x", p.RawPayload())
 }
+
+// Parse is currently a no-op.
+func (p *RawPacket) Parse() error { return nil }
