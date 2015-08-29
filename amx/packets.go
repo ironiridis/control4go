@@ -43,7 +43,7 @@ func (s *PacketParser) Parse() (parsed int) {
 		d := make([]byte, l+1)
 		s.buf.Read(d)
 
-		rp := &RawPacket{raw: d}
+		rp := &RawPacket{raw: d, payloadLength: l}
 		s.ch <- rp
 
 		parsed++
