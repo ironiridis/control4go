@@ -76,7 +76,7 @@ func (p *RawPacket) RawPayload() []byte {
 
 // String returns a dump of the packet data
 func (p *RawPacket) String() string {
-	return fmt.Sprintf("raw=%s", humanhex.String(p.RawPayload(), 2))
+	return fmt.Sprintf("raw=%s", humanhex.String(p.RawPayload(), 3))
 }
 
 // Parse is currently a no-op.
