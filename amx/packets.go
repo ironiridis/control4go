@@ -74,7 +74,7 @@ func (p *RawPacket) RawPayload() []byte {
 
 // String returns a dump of the packet data
 func (p *RawPacket) String() string {
-	return fmt.Sprintf("raw=% 2x", p.RawPayload())
+	return fmt.Sprintf("raw=%q", p.RawPayload())
 }
 
 // Parse is currently a no-op.
