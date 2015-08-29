@@ -3,6 +3,8 @@ package icsp
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/ironiridis/humanhex"
 )
 
 // Packet is an interface for getting the information out of an ICSP Packet.
@@ -32,7 +34,7 @@ func (s *PacketParser) Parse() (parsed int) {
 		b := s.buf.Bytes()
 		if b[0] != 0x02 {
 			// observed packets always begin with 0x02, assume a desync
-			s.buf.Truncate(0)
+			s.buf.Reset()
 			return
 		}
 		// header is 3 bytes, plus length of packet
@@ -74,7 +76,7 @@ func (p *RawPacket) RawPayload() []byte {
 
 // String returns a dump of the packet data
 func (p *RawPacket) String() string {
-	return fmt.Sprintf("raw=%q", p.RawPayload())
+	return fmt.Sprintf("raw=%s", humanhex.String(p.RawPayload(), 2))
 }
 
 // Parse is currently a no-op.
