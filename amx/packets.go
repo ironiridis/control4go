@@ -35,7 +35,8 @@ func (s *PacketParser) Parse() (parsed int) {
 			s.buf.Truncate(0)
 			return
 		}
-		l := 2 + (int(b[1]) << 8) + int(b[2])
+		// header is 3 bytes, plus length of packet
+		l := 3 + (int(b[1]) << 8) + int(b[2])
 
 		if s.buf.Len() < l {
 			return
