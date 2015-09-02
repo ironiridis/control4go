@@ -70,6 +70,11 @@ const (
 	MsgHeartbeat Msg = 0x0502 // ?GMDYYHMS???DateString0 (G: alternating 0/1)
 	MsgPong      Msg = 0x0581 // DDSSPPHHALa{L} H: Hardware ID
 	// A: Physical address type(?), L: Phyiscal address length, a: Address bytes
+	MsgAuthUnk1 Msg = 0x0701
+	MsgAuthUnk2 Msg = 0x0702
+	MsgAuthUnk3 Msg = 0x0703 // observed payloads:
+	// success? \x00\x01\x00\x10
+	// proceeding with ssl? \x00\x03\x00\x18
 )
 
 type LevType uint8
@@ -104,8 +109,9 @@ func (s *PacketParser) Parse() (parsed int) {
 			return
 		}
 		b := s.buf.Bytes()
-		if b[0] != 0x02 {
+		if b[0] != 0x02 && b[0] != 0x04 {
 			// observed packets always begin with 0x02, assume a desync
+			fmt.Printf("desync; truncating with buf: %s\n", humanhex.String(b, 3))
 			s.buf.Reset()
 			return
 		}
@@ -127,6 +133,7 @@ func (s *PacketParser) Parse() (parsed int) {
 // RawPacket is an uninterpreted packet that can be further processed.
 type RawPacket struct {
 	raw           []byte
+	encrypted     bool
 	checksumValid bool
 	unk1          uint8 // byte 3, observed to be 0x02 usually
 	flags         uint8 //
@@ -141,6 +148,16 @@ type RawPacket struct {
 
 func NewRawPacket(d []byte) *RawPacket {
 	p := &RawPacket{raw: d}
+	switch d[0] {
+	case 0x02:
+		{
+			p.encrypted = false
+		}
+	case 0x04:
+		{
+			p.encrypted = true
+		}
+	}
 	p.unk1 = uint8(d[3])
 	p.flags = uint8(d[4])
 	p.To = readSDPFormatAddress(d[5:])
