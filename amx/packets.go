@@ -70,11 +70,17 @@ const (
 	MsgHeartbeat Msg = 0x0502 // ?GMDYYHMS???DateString0 (G: alternating 0/1)
 	MsgPong      Msg = 0x0581 // DDSSPPHHALa{L} H: Hardware ID
 	// A: Physical address type(?), L: Phyiscal address length, a: Address bytes
+
 	MsgAuthUnk1 Msg = 0x0701
 	MsgAuthUnk2 Msg = 0x0702
 	MsgAuthUnk3 Msg = 0x0703 // observed payloads:
 	// success? \x00\x01\x00\x10
-	// proceeding with ssl? \x00\x03\x00\x18
+	// proceeding encrypted? \x00\x03\x00\x18
+	// so it could be a bitmask, ABCD, where
+	// B & 0x02 or D & 0x08 == encryption
+	// or one of those could indicate an encryption method.
+	// not going to push too hard down that road until we have a more robust (aka
+	// working) implementation.
 )
 
 type LevType uint8
